@@ -30,10 +30,10 @@ class DecibelMeter(object):
         return DecibelMeter.Record(dB)
 
 class DecibelHistory(object):
-    def __init__(self, meter, delta):
+    def __init__(self, meter, recorder, delta):
         self.meter = meter
+        self.recorder = recorder
         self.delta = delta
-        self.records = []
         self._keep_recording = False
 
     def start(self):
@@ -52,15 +52,32 @@ class DecibelHistory(object):
             
             rec = self.meter.retrieve()
 
-            print(rec)
+            #print(rec)
+            self.recorder.store_measurement(rec)
 
             t2 = datetime.datetime.now()
 
             time.sleep((self.delta - (t2 - t1)).total_seconds())
 
+class DecibelHistoryRecorder(object):
+    def store_measurement(self, rec):
+        raise NotImplementedError()
+
+class DecibelHistoryRecorderText(DecibelHistoryRecorder):
+    def __init__(self, text_file):
+        self._file = open(text_file, 'a')
+
+    def __del__(self):
+        self._file.close()
+
+    def store_measurement(self, rec):
+        self._file.write('%s, %4.1f\n' % (rec.date, rec.decibels))
+        self._file.flush()
+
 def main():
     meter = DecibelMeter()
-    hist = DecibelHistory(meter, datetime.timedelta(seconds=1))
+    recorder = DecibelHistoryRecorderText(sys.argv[1])
+    hist = DecibelHistory(meter, recorder, datetime.timedelta(seconds=1))
     hist.start()
 
     while not os.path.exists('STOP'):
